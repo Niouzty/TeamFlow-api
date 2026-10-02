@@ -2,6 +2,22 @@
 
 Backend Spring Boot minimal de TeamFlow.
 
+## PostgreSQL
+
+Démarrer PostgreSQL avec Docker:
+
+```bash
+docker compose up -d postgres
+```
+
+Puis lancer l’API:
+
+```bash
+mvn spring-boot:run
+```
+
+Les valeurs peuvent être remplacées avec `DATABASE_URL`, `DATABASE_USERNAME` et `DATABASE_PASSWORD`.
+
 ## Lancer le projet
 
 ```bash
