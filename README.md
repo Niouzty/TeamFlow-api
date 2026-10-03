@@ -13,23 +13,11 @@ docker compose up -d postgres
 Puis lancer l’API:
 
 ```bash
+# Générer une fois et conserver la valeur dans votre environnement local
+export JWT_SECRET="$(openssl rand -base64 32)"
 mvn spring-boot:run
 ```
 
-Les valeurs peuvent être remplacées avec `DATABASE_URL`, `DATABASE_USERNAME` et `DATABASE_PASSWORD`.
-
-## Lancer le projet
-
-```bash
-mvn spring-boot:run
-```
+`JWT_SECRET` doit être une clé Base64 représentant au moins 32 octets. Garde cette valeur privée et stable entre les redémarrages ; ne la commite pas. Les paramètres de la base peuvent être remplacés avec `DATABASE_URL`, `DATABASE_USERNAME` et `DATABASE_PASSWORD`.
 
 L’API est disponible sur `http://localhost:8080`.
-
-Vérification de l’état:
-
-```bash
-curl http://localhost:8080/api/health
-```
-
-Réponse attendue: `{"status":"UP"}`.
