@@ -2,8 +2,11 @@ package com.teamflow.service;
 
 import com.teamflow.dto.project.ProjectRequestDto;
 import com.teamflow.dto.project.ProjectResponseDto;
+import com.teamflow.dto.project.ProjectMemberResponseDto;
 import com.teamflow.entity.Project;
 import com.teamflow.entity.User;
+import com.teamflow.exception.ProjectMemberAlreadyExistsException;
+import com.teamflow.exception.ProjectMemberNotFoundException;
 import com.teamflow.exception.ProjectNotFoundException;
 import com.teamflow.exception.UserNotFoundException;
 import com.teamflow.mapper.ProjectMapper;
@@ -67,6 +70,42 @@ public class ProjectService {
     public void delete(Long projectId, String ownerEmail) {
         Project project = findProjectForOwner(projectId, ownerEmail);
         projectRepository.delete(project);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ProjectMemberResponseDto> findMembers(Long projectId, String ownerEmail) {
+        Project project = findProjectForOwner(projectId, ownerEmail);
+        return projectMapper.toMemberResponseDtos(project);
+    }
+
+    @Transactional
+    public ProjectMemberResponseDto addMember(
+            Long projectId,
+            String ownerEmail,
+            String memberEmail
+    ) {
+        Project project = findProjectForOwner(projectId, ownerEmail);
+        User member = userRepository.findByEmail(memberEmail)
+                .orElseThrow(UserNotFoundException::new);
+
+        if (project.hasMember(member.getId())) {
+            throw new ProjectMemberAlreadyExistsException();
+        }
+
+        project.addMember(member);
+        projectRepository.save(project);
+        return projectMapper.toMemberResponseDto(member);
+    }
+
+    @Transactional
+    public void removeMember(Long projectId, String ownerEmail, Long memberId) {
+        Project project = findProjectForOwner(projectId, ownerEmail);
+        if (!project.hasMember(memberId)) {
+            throw new ProjectMemberNotFoundException();
+        }
+
+        project.removeMember(memberId);
+        projectRepository.save(project);
     }
 
     private Project findProjectForOwner(Long projectId, String ownerEmail) {

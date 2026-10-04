@@ -42,4 +42,14 @@ Toutes les routes projet nécessitent un JWT. Un utilisateur ne peut consulter, 
 - `PUT /api/projects/{projectId}`: remplacer son nom et sa description.
 - `DELETE /api/projects/{projectId}`: supprimer un projet.
 
-La gestion des membres et des tâches sera ajoutée dans des fonctionnalités distinctes.
+La gestion des tâches sera ajoutée dans une fonctionnalité distincte.
+
+## Membres de projet
+
+Seul le propriétaire du projet peut gérer ses membres. Toutes les routes nécessitent un JWT.
+
+- `GET /api/projects/{projectId}/members`: lister les membres du projet.
+- `POST /api/projects/{projectId}/members`: ajouter un membre avec son email (`{"email":"member@example.com"}`).
+- `DELETE /api/projects/{projectId}/members/{memberId}`: retirer un membre du projet.
+
+Un compte doit déjà exister pour être ajouté. Un membre déjà présent renvoie `409 Conflict`; un compte, un projet ou une appartenance introuvable renvoie `404 Not Found`.
