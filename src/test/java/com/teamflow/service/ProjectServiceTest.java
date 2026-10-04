@@ -7,11 +7,13 @@ import com.teamflow.entity.Project;
 import com.teamflow.entity.User;
 import com.teamflow.entity.UserRole;
 import com.teamflow.exception.ProjectMemberAlreadyExistsException;
+import com.teamflow.exception.ProjectMemberHasAssignedTasksException;
 import com.teamflow.exception.ProjectMemberNotFoundException;
 import com.teamflow.exception.ProjectNotFoundException;
 import com.teamflow.exception.UserNotFoundException;
 import com.teamflow.mapper.ProjectMapper;
 import com.teamflow.repository.ProjectRepository;
+import com.teamflow.repository.TaskRepository;
 import com.teamflow.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -38,6 +40,9 @@ class ProjectServiceTest {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private TaskRepository taskRepository;
 
     @Mock
     private ProjectMapper projectMapper;
@@ -248,11 +253,32 @@ class ProjectServiceTest {
         project.addMember(member);
         when(projectRepository.findByIdAndOwner_Email(5L, ownerEmail))
                 .thenReturn(Optional.of(project));
+        when(taskRepository.existsByAssignedUser_IdAndProject_Id(2L, 5L)).thenReturn(false);
 
         projectService.removeMember(5L, ownerEmail, 2L);
 
         assertEquals(false, project.hasMember(2L));
         verify(projectRepository).save(project);
+    }
+
+    @Test
+    void removeMemberRejectsMembersWithAssignedTasks() {
+        String ownerEmail = "alice@example.com";
+        User owner = user(1L, "alice", ownerEmail);
+        User member = user(2L, "bob", "bob@example.com");
+        Project project = new Project("TeamFlow", null, owner);
+        project.addMember(member);
+        when(projectRepository.findByIdAndOwner_Email(5L, ownerEmail))
+                .thenReturn(Optional.of(project));
+        when(taskRepository.existsByAssignedUser_IdAndProject_Id(2L, 5L)).thenReturn(true);
+
+        assertThrows(
+                ProjectMemberHasAssignedTasksException.class,
+                () -> projectService.removeMember(5L, ownerEmail, 2L)
+        );
+
+        assertEquals(true, project.hasMember(2L));
+        verify(projectRepository, never()).save(org.mockito.ArgumentMatchers.any(Project.class));
     }
 
     @Test
