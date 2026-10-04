@@ -2,6 +2,8 @@ package com.teamflow.controller;
 
 import com.teamflow.dto.project.ProjectRequestDto;
 import com.teamflow.dto.project.ProjectResponseDto;
+import com.teamflow.dto.project.AddProjectMemberRequestDto;
+import com.teamflow.dto.project.ProjectMemberResponseDto;
 import com.teamflow.service.ProjectService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -75,5 +77,33 @@ public class ProjectController {
     ) {
         projectService.delete(projectId, jwt.getSubject());
         return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
+    }
+
+    @GetMapping("/{projectId}/members")
+    public ResponseEntity<List<ProjectMemberResponseDto>> findMembers(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long projectId
+    ) {
+        return ResponseEntity.ok(projectService.findMembers(projectId, jwt.getSubject()));
+    }
+
+    @PostMapping("/{projectId}/members")
+    public ResponseEntity<ProjectMemberResponseDto> addMember(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long projectId,
+            @Valid @RequestBody AddProjectMemberRequestDto request
+    ) {
+        ProjectMemberResponseDto response = projectService.addMember(projectId, jwt.getSubject(), request.email());
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @DeleteMapping("/{projectId}/members/{memberId}")
+    public ResponseEntity<Void> removeMember(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long projectId,
+            @PathVariable Long memberId
+    ) {
+        projectService.removeMember(projectId, jwt.getSubject(), memberId);
+        return ResponseEntity.noContent().build();
     }
 }

@@ -1,12 +1,14 @@
 package com.teamflow.config;
 
+import com.teamflow.dto.project.AddProjectMemberRequestDto;
+import com.teamflow.dto.project.ProjectMemberResponseDto;
+import com.teamflow.dto.project.ProjectRequestDto;
+import com.teamflow.dto.project.ProjectResponseDto;
+import com.teamflow.dto.user.UserResponseDto;
+import com.teamflow.entity.UserRole;
 import com.teamflow.service.AuthService;
 import com.teamflow.service.ProjectService;
 import com.teamflow.service.UserService;
-import com.teamflow.dto.user.UserResponseDto;
-import com.teamflow.dto.project.ProjectRequestDto;
-import com.teamflow.dto.project.ProjectResponseDto;
-import com.teamflow.entity.UserRole;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -126,6 +128,16 @@ class SecurityConfigTest {
                 .andExpect(status().isUnauthorized());
         mockMvc.perform(delete("/api/projects/1"))
                 .andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/projects/1/members"))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(post("/api/projects/1/members")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"bob@example.com"}
+                                """))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(delete("/api/projects/1/members/2"))
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -146,6 +158,45 @@ class SecurityConfigTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(5))
                 .andExpect(jsonPath("$.ownerUsername").value("alice"));
+    }
+
+    @Test
+    void memberRoutesUseTheAuthenticatedOwner() throws Exception {
+        ProjectMemberResponseDto member = new ProjectMemberResponseDto(2L, "bob");
+        when(projectService.addMember(
+                org.mockito.ArgumentMatchers.eq(5L),
+                org.mockito.ArgumentMatchers.eq("alice@example.com"),
+                org.mockito.ArgumentMatchers.eq("bob@example.com")
+        )).thenReturn(member);
+        when(projectService.findMembers(5L, "alice@example.com"))
+                .thenReturn(java.util.List.of(member));
+
+        mockMvc.perform(post("/api/projects/5/members")
+                        .header("Authorization", "Bearer " + createToken("alice@example.com"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"bob@example.com"}
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value(2))
+                .andExpect(jsonPath("$.username").value("bob"));
+
+        mockMvc.perform(get("/api/projects/5/members")
+                        .header("Authorization", "Bearer " + createToken("alice@example.com")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].username").value("bob"));
+
+        verify(projectService).addMember(5L, "alice@example.com", "bob@example.com");
+        verify(projectService).findMembers(5L, "alice@example.com");
+    }
+
+    @Test
+    void removingMemberUsesTheAuthenticatedOwner() throws Exception {
+        mockMvc.perform(delete("/api/projects/5/members/2")
+                        .header("Authorization", "Bearer " + createToken("alice@example.com")))
+                .andExpect(status().isNoContent());
+
+        verify(projectService).removeMember(5L, "alice@example.com", 2L);
     }
 
     private String createToken(String subject) {

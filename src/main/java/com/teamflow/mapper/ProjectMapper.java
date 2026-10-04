@@ -2,9 +2,13 @@ package com.teamflow.mapper;
 
 import com.teamflow.dto.project.ProjectRequestDto;
 import com.teamflow.dto.project.ProjectResponseDto;
+import com.teamflow.dto.project.ProjectMemberResponseDto;
 import com.teamflow.entity.Project;
 import com.teamflow.entity.User;
 import org.springframework.stereotype.Component;
+
+import java.util.Comparator;
+import java.util.List;
 
 @Component
 public class ProjectMapper {
@@ -27,5 +31,16 @@ public class ProjectMapper {
                 project.getOwner().getId(),
                 project.getOwner().getUsername()
         );
+    }
+
+    public ProjectMemberResponseDto toMemberResponseDto(User user) {
+        return new ProjectMemberResponseDto(user.getId(), user.getUsername());
+    }
+
+    public List<ProjectMemberResponseDto> toMemberResponseDtos(Project project) {
+        return project.getMembers().stream()
+                .sorted(Comparator.comparing(User::getUsername, String.CASE_INSENSITIVE_ORDER))
+                .map(this::toMemberResponseDto)
+                .toList();
     }
 }
