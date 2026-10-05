@@ -42,8 +42,6 @@ Toutes les routes projet nécessitent un JWT. Un utilisateur ne peut consulter, 
 - `PUT /api/projects/{projectId}`: remplacer son nom et sa description.
 - `DELETE /api/projects/{projectId}`: supprimer un projet.
 
-La gestion des tâches sera ajoutée dans une fonctionnalité distincte.
-
 ## Membres de projet
 
 Seul le propriétaire du projet peut gérer ses membres. Toutes les routes nécessitent un JWT.
@@ -53,3 +51,23 @@ Seul le propriétaire du projet peut gérer ses membres. Toutes les routes néce
 - `DELETE /api/projects/{projectId}/members/{memberId}`: retirer un membre du projet.
 
 Un compte doit déjà exister pour être ajouté. Un membre déjà présent renvoie `409 Conflict`; un compte, un projet ou une appartenance introuvable renvoie `404 Not Found`.
+
+Un membre qui a encore des tâches assignées ne peut pas être retiré du projet (`409 Conflict`).
+
+## Tâches
+
+Les tâches sont rattachées à un projet. Toutes les routes nécessitent un JWT et sont limitées au propriétaire et aux membres du projet.
+
+- `POST /api/projects/{projectId}/tasks`: créer une tâche (`title`, `description`, `priority`, `dueDate`).
+- `GET /api/projects/{projectId}/tasks`: lister les tâches du projet.
+- `GET /api/projects/{projectId}/tasks/{taskId}`: consulter une tâche.
+- `PUT /api/projects/{projectId}/tasks/{taskId}`: modifier les détails d’une tâche. Le propriétaire peut modifier toutes les tâches ; un membre ne peut modifier que les tâches qui lui sont assignées.
+- `PATCH /api/projects/{projectId}/tasks/{taskId}/status`: modifier le statut (`TODO`, `IN_PROGRESS`, `DONE`).
+- `PATCH /api/projects/{projectId}/tasks/{taskId}/assignee`: assigner (`{"userId":2}`) ou désassigner (`{"userId":null}`). Le propriétaire peut choisir un membre du projet ; un membre peut uniquement s’assigner lui-même.
+- `DELETE /api/projects/{projectId}/tasks/{taskId}`: supprimer une tâche (propriétaire uniquement).
+
+La priorité accepte `LOW`, `MEDIUM` ou `HIGH`; la date d’échéance est facultative.
+
+## Dashboard
+
+- `GET /api/dashboard`: renvoie les projets dont l’utilisateur connecté est propriétaire ou membre, avec les nombres de tâches par statut et leur progression. La réponse inclut les identifiants des projets pour accéder à leurs tâches via les routes projet.

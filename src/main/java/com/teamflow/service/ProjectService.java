@@ -6,11 +6,13 @@ import com.teamflow.dto.project.ProjectMemberResponseDto;
 import com.teamflow.entity.Project;
 import com.teamflow.entity.User;
 import com.teamflow.exception.ProjectMemberAlreadyExistsException;
+import com.teamflow.exception.ProjectMemberHasAssignedTasksException;
 import com.teamflow.exception.ProjectMemberNotFoundException;
 import com.teamflow.exception.ProjectNotFoundException;
 import com.teamflow.exception.UserNotFoundException;
 import com.teamflow.mapper.ProjectMapper;
 import com.teamflow.repository.ProjectRepository;
+import com.teamflow.repository.TaskRepository;
 import com.teamflow.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,15 +23,18 @@ import java.util.List;
 public class ProjectService {
 
     private final ProjectRepository projectRepository;
+    private final TaskRepository taskRepository;
     private final UserRepository userRepository;
     private final ProjectMapper projectMapper;
 
     public ProjectService(
             ProjectRepository projectRepository,
+            TaskRepository taskRepository,
             UserRepository userRepository,
             ProjectMapper projectMapper
     ) {
         this.projectRepository = projectRepository;
+        this.taskRepository = taskRepository;
         this.userRepository = userRepository;
         this.projectMapper = projectMapper;
     }
@@ -102,6 +107,9 @@ public class ProjectService {
         Project project = findProjectForOwner(projectId, ownerEmail);
         if (!project.hasMember(memberId)) {
             throw new ProjectMemberNotFoundException();
+        }
+        if (taskRepository.existsByAssignedUser_IdAndProject_Id(memberId, projectId)) {
+            throw new ProjectMemberHasAssignedTasksException();
         }
 
         project.removeMember(memberId);

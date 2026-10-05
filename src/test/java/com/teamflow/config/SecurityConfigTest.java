@@ -4,10 +4,19 @@ import com.teamflow.dto.project.AddProjectMemberRequestDto;
 import com.teamflow.dto.project.ProjectMemberResponseDto;
 import com.teamflow.dto.project.ProjectRequestDto;
 import com.teamflow.dto.project.ProjectResponseDto;
+import com.teamflow.dto.dashboard.DashboardResponseDto;
+import com.teamflow.dto.dashboard.ProjectDashboardDto;
+import com.teamflow.dto.task.TaskRequestDto;
+import com.teamflow.dto.task.TaskResponseDto;
+import com.teamflow.dto.task.TaskStatusRequestDto;
 import com.teamflow.dto.user.UserResponseDto;
+import com.teamflow.entity.TaskPriority;
+import com.teamflow.entity.TaskStatus;
 import com.teamflow.entity.UserRole;
 import com.teamflow.service.AuthService;
+import com.teamflow.service.DashboardService;
 import com.teamflow.service.ProjectService;
+import com.teamflow.service.TaskService;
 import com.teamflow.service.UserService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -55,6 +64,12 @@ class SecurityConfigTest {
 
     @MockitoBean
     private ProjectService projectService;
+
+    @MockitoBean
+    private TaskService taskService;
+
+    @MockitoBean
+    private DashboardService dashboardService;
 
     @Test
     void protectedRoutesRequireAuthentication() throws Exception {
@@ -197,6 +212,120 @@ class SecurityConfigTest {
                 .andExpect(status().isNoContent());
 
         verify(projectService).removeMember(5L, "alice@example.com", 2L);
+    }
+
+    @Test
+    void taskRoutesRequireAuthentication() throws Exception {
+        mockMvc.perform(get("/api/projects/5/tasks"))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(post("/api/projects/5/tasks")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"title":"Implement task","priority":"MEDIUM"}
+                                """))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(patch("/api/projects/5/tasks/8/status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"status":"DONE"}
+                                """))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void taskCreationUsesTheAuthenticatedMember() throws Exception {
+        TaskResponseDto response = new TaskResponseDto(
+                8L,
+                "Implement task",
+                "Description",
+                TaskStatus.TODO,
+                TaskPriority.MEDIUM,
+                null,
+                5L,
+                null,
+                null,
+                null,
+                null
+        );
+        when(taskService.create(
+                org.mockito.ArgumentMatchers.eq(5L),
+                org.mockito.ArgumentMatchers.eq("bob@example.com"),
+                any(TaskRequestDto.class)
+        )).thenReturn(response);
+
+        mockMvc.perform(post("/api/projects/5/tasks")
+                        .header("Authorization", "Bearer " + createToken("bob@example.com"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"title":"Implement task","description":"Description","priority":"MEDIUM"}
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value(8))
+                .andExpect(jsonPath("$.status").value("TODO"));
+    }
+
+    @Test
+    void taskStatusRouteUsesTheAuthenticatedMember() throws Exception {
+        TaskResponseDto response = new TaskResponseDto(
+                8L,
+                "Implement task",
+                "Description",
+                TaskStatus.DONE,
+                TaskPriority.MEDIUM,
+                null,
+                5L,
+                null,
+                null,
+                null,
+                null
+        );
+        when(taskService.updateStatus(
+                org.mockito.ArgumentMatchers.eq(5L),
+                org.mockito.ArgumentMatchers.eq(8L),
+                org.mockito.ArgumentMatchers.eq("bob@example.com"),
+                any(TaskStatusRequestDto.class)
+        )).thenReturn(response);
+
+        mockMvc.perform(patch("/api/projects/5/tasks/8/status")
+                        .header("Authorization", "Bearer " + createToken("bob@example.com"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"status":"DONE"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("DONE"));
+    }
+
+    @Test
+    void dashboardRequiresAuthentication() throws Exception {
+        mockMvc.perform(get("/api/dashboard"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void dashboardIsScopedToTheAuthenticatedUser() throws Exception {
+        DashboardResponseDto response = new DashboardResponseDto(
+                1,
+                2,
+                1,
+                0,
+                1,
+                50.0,
+                java.util.List.of(new ProjectDashboardDto(
+                        5L, "TeamFlow", null, 2, 1, 0, 1, 50.0
+                ))
+        );
+        when(dashboardService.getDashboard("alice@example.com")).thenReturn(response);
+
+        mockMvc.perform(get("/api/dashboard")
+                        .header("Authorization", "Bearer " + createToken("alice@example.com")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalProjects").value(1))
+                .andExpect(jsonPath("$.totalTasks").value(2))
+                .andExpect(jsonPath("$.projects[0].projectId").value(5))
+                .andExpect(jsonPath("$.projects[0].progressPercentage").value(50.0));
+
+        verify(dashboardService).getDashboard("alice@example.com");
     }
 
     private String createToken(String subject) {
