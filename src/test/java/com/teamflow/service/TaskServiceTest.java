@@ -8,6 +8,7 @@ import com.teamflow.entity.Project;
 import com.teamflow.entity.Task;
 import com.teamflow.entity.TaskPriority;
 import com.teamflow.entity.TaskStatus;
+import com.teamflow.entity.Notification;
 import com.teamflow.entity.User;
 import com.teamflow.entity.UserRole;
 import com.teamflow.exception.ProjectAccessDeniedException;
@@ -15,6 +16,7 @@ import com.teamflow.exception.ProjectNotFoundException;
 import com.teamflow.exception.TaskNotFoundException;
 import com.teamflow.exception.UserNotFoundException;
 import com.teamflow.mapper.TaskMapper;
+import com.teamflow.repository.NotificationRepository;
 import com.teamflow.repository.ProjectRepository;
 import com.teamflow.repository.TaskRepository;
 import com.teamflow.repository.UserRepository;
@@ -42,6 +44,9 @@ class TaskServiceTest {
 
     @Mock
     private TaskRepository taskRepository;
+
+    @Mock
+    private NotificationRepository notificationRepository;
 
     @Mock
     private ProjectRepository projectRepository;
@@ -251,6 +256,33 @@ class TaskServiceTest {
         );
 
         assertEquals(member, task.getAssignedUser());
+        org.mockito.ArgumentCaptor<Notification> notificationCaptor =
+                org.mockito.ArgumentCaptor.forClass(Notification.class);
+        verify(notificationRepository).save(notificationCaptor.capture());
+        assertEquals(member, notificationCaptor.getValue().getUser());
+        assertEquals("TASK_ASSIGNED", notificationCaptor.getValue().getType());
+        assertEquals("You have been assigned to task \"Task\".", notificationCaptor.getValue().getMessage());
+    }
+
+    @Test
+    void assigningTaskToSameUserDoesNotCreateDuplicateNotification() {
+        User owner = user(1L, "alice", "alice@example.com");
+        User member = user(2L, "bob", "bob@example.com");
+        Project project = project(owner, member);
+        Task task = new Task("Task", null, project);
+        task.setAssignedUser(member);
+        TaskResponseDto response = response(task, 1L);
+        when(projectRepository.findById(5L)).thenReturn(Optional.of(project));
+        when(userRepository.findByEmail(owner.getEmail())).thenReturn(Optional.of(owner));
+        when(taskRepository.findByIdAndProject_Id(8L, 5L)).thenReturn(Optional.of(task));
+        when(userRepository.findById(member.getId())).thenReturn(Optional.of(member));
+        doAnswer(invocation -> null).when(taskMapper).updateAssignee(task, member);
+        when(taskRepository.save(task)).thenReturn(task);
+        when(taskMapper.toResponseDto(task)).thenReturn(response);
+
+        taskService.assign(5L, 8L, owner.getEmail(), new TaskAssignmentRequestDto(member.getId()));
+
+        verify(notificationRepository, never()).save(org.mockito.ArgumentMatchers.any(Notification.class));
     }
 
     @Test

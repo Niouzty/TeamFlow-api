@@ -6,6 +6,7 @@ import com.teamflow.dto.project.ProjectRequestDto;
 import com.teamflow.dto.project.ProjectResponseDto;
 import com.teamflow.dto.dashboard.DashboardResponseDto;
 import com.teamflow.dto.dashboard.ProjectDashboardDto;
+import com.teamflow.dto.notification.NotificationResponseDto;
 import com.teamflow.dto.task.TaskRequestDto;
 import com.teamflow.dto.task.TaskResponseDto;
 import com.teamflow.dto.task.TaskStatusRequestDto;
@@ -15,6 +16,7 @@ import com.teamflow.entity.TaskStatus;
 import com.teamflow.entity.UserRole;
 import com.teamflow.service.AuthService;
 import com.teamflow.service.DashboardService;
+import com.teamflow.service.NotificationService;
 import com.teamflow.service.ProjectService;
 import com.teamflow.service.TaskService;
 import com.teamflow.service.UserService;
@@ -70,6 +72,9 @@ class SecurityConfigTest {
 
     @MockitoBean
     private DashboardService dashboardService;
+
+    @MockitoBean
+    private NotificationService notificationService;
 
     @Test
     void protectedRoutesRequireAuthentication() throws Exception {
@@ -326,6 +331,39 @@ class SecurityConfigTest {
                 .andExpect(jsonPath("$.projects[0].progressPercentage").value(50.0));
 
         verify(dashboardService).getDashboard("alice@example.com");
+    }
+
+    @Test
+    void notificationRoutesRequireAuthentication() throws Exception {
+        mockMvc.perform(get("/api/notifications"))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(patch("/api/notifications/1/read"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void notificationRoutesUseTheAuthenticatedUser() throws Exception {
+        NotificationResponseDto response = new NotificationResponseDto(
+                4L, "You have been assigned to task \"Implement feature\".",
+                "TASK_ASSIGNED", true, null
+        );
+        when(notificationService.findAllForUser("alice@example.com"))
+                .thenReturn(java.util.List.of(response));
+        when(notificationService.markAsRead(4L, "alice@example.com")).thenReturn(response);
+
+        mockMvc.perform(get("/api/notifications")
+                        .header("Authorization", "Bearer " + createToken("alice@example.com")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].type").value("TASK_ASSIGNED"))
+                .andExpect(jsonPath("$[0].isRead").value(true));
+
+        mockMvc.perform(patch("/api/notifications/4/read")
+                        .header("Authorization", "Bearer " + createToken("alice@example.com")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.isRead").value(true));
+
+        verify(notificationService).findAllForUser("alice@example.com");
+        verify(notificationService).markAsRead(4L, "alice@example.com");
     }
 
     private String createToken(String subject) {

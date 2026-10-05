@@ -4,6 +4,7 @@ import com.teamflow.dto.task.TaskAssignmentRequestDto;
 import com.teamflow.dto.task.TaskRequestDto;
 import com.teamflow.dto.task.TaskResponseDto;
 import com.teamflow.dto.task.TaskStatusRequestDto;
+import com.teamflow.entity.Notification;
 import com.teamflow.entity.Project;
 import com.teamflow.entity.Task;
 import com.teamflow.entity.User;
@@ -12,6 +13,7 @@ import com.teamflow.exception.ProjectNotFoundException;
 import com.teamflow.exception.TaskNotFoundException;
 import com.teamflow.exception.UserNotFoundException;
 import com.teamflow.mapper.TaskMapper;
+import com.teamflow.repository.NotificationRepository;
 import com.teamflow.repository.ProjectRepository;
 import com.teamflow.repository.TaskRepository;
 import com.teamflow.repository.UserRepository;
@@ -19,22 +21,26 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Objects;
 
 @Service
 public class TaskService {
 
     private final TaskRepository taskRepository;
+    private final NotificationRepository notificationRepository;
     private final ProjectRepository projectRepository;
     private final UserRepository userRepository;
     private final TaskMapper taskMapper;
 
     public TaskService(
             TaskRepository taskRepository,
+            NotificationRepository notificationRepository,
             ProjectRepository projectRepository,
             UserRepository userRepository,
             TaskMapper taskMapper
     ) {
         this.taskRepository = taskRepository;
+        this.notificationRepository = notificationRepository;
         this.projectRepository = projectRepository;
         this.userRepository = userRepository;
         this.taskMapper = taskMapper;
@@ -101,6 +107,9 @@ public class TaskService {
     ) {
         ProjectAccess access = getProjectAccess(projectId, requesterEmail);
         Task task = findTask(projectId, taskId);
+        Long previousAssigneeId = task.getAssignedUser() == null
+                ? null
+                : task.getAssignedUser().getId();
         User assignee = null;
 
         if (request.userId() != null) {
@@ -118,7 +127,15 @@ public class TaskService {
         }
 
         taskMapper.updateAssignee(task, assignee);
-        return taskMapper.toResponseDto(taskRepository.save(task));
+        Task savedTask = taskRepository.save(task);
+        if (assignee != null && !Objects.equals(previousAssigneeId, assignee.getId())) {
+            notificationRepository.save(new Notification(
+                    "You have been assigned to task \"" + savedTask.getTitle() + "\".",
+                    "TASK_ASSIGNED",
+                    assignee
+            ));
+        }
+        return taskMapper.toResponseDto(savedTask);
     }
 
     @Transactional
