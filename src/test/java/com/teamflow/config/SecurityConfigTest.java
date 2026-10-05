@@ -4,6 +4,8 @@ import com.teamflow.dto.project.AddProjectMemberRequestDto;
 import com.teamflow.dto.project.ProjectMemberResponseDto;
 import com.teamflow.dto.project.ProjectRequestDto;
 import com.teamflow.dto.project.ProjectResponseDto;
+import com.teamflow.dto.dashboard.DashboardResponseDto;
+import com.teamflow.dto.dashboard.ProjectDashboardDto;
 import com.teamflow.dto.task.TaskRequestDto;
 import com.teamflow.dto.task.TaskResponseDto;
 import com.teamflow.dto.task.TaskStatusRequestDto;
@@ -12,6 +14,7 @@ import com.teamflow.entity.TaskPriority;
 import com.teamflow.entity.TaskStatus;
 import com.teamflow.entity.UserRole;
 import com.teamflow.service.AuthService;
+import com.teamflow.service.DashboardService;
 import com.teamflow.service.ProjectService;
 import com.teamflow.service.TaskService;
 import com.teamflow.service.UserService;
@@ -64,6 +67,9 @@ class SecurityConfigTest {
 
     @MockitoBean
     private TaskService taskService;
+
+    @MockitoBean
+    private DashboardService dashboardService;
 
     @Test
     void protectedRoutesRequireAuthentication() throws Exception {
@@ -288,6 +294,38 @@ class SecurityConfigTest {
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("DONE"));
+    }
+
+    @Test
+    void dashboardRequiresAuthentication() throws Exception {
+        mockMvc.perform(get("/api/dashboard"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void dashboardIsScopedToTheAuthenticatedUser() throws Exception {
+        DashboardResponseDto response = new DashboardResponseDto(
+                1,
+                2,
+                1,
+                0,
+                1,
+                50.0,
+                java.util.List.of(new ProjectDashboardDto(
+                        5L, "TeamFlow", null, 2, 1, 0, 1, 50.0
+                ))
+        );
+        when(dashboardService.getDashboard("alice@example.com")).thenReturn(response);
+
+        mockMvc.perform(get("/api/dashboard")
+                        .header("Authorization", "Bearer " + createToken("alice@example.com")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalProjects").value(1))
+                .andExpect(jsonPath("$.totalTasks").value(2))
+                .andExpect(jsonPath("$.projects[0].projectId").value(5))
+                .andExpect(jsonPath("$.projects[0].progressPercentage").value(50.0));
+
+        verify(dashboardService).getDashboard("alice@example.com");
     }
 
     private String createToken(String subject) {

@@ -67,3 +67,7 @@ Les tâches sont rattachées à un projet. Toutes les routes nécessitent un JWT
 - `DELETE /api/projects/{projectId}/tasks/{taskId}`: supprimer une tâche (propriétaire uniquement).
 
 La priorité accepte `LOW`, `MEDIUM` ou `HIGH`; la date d’échéance est facultative.
+
+## Dashboard
+
+- `GET /api/dashboard`: renvoie les projets dont l’utilisateur connecté est propriétaire ou membre, avec les nombres de tâches par statut et leur progression. La réponse inclut les identifiants des projets pour accéder à leurs tâches via les routes projet.
