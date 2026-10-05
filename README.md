@@ -71,3 +71,12 @@ La priorité accepte `LOW`, `MEDIUM` ou `HIGH`; la date d’échéance est facul
 ## Dashboard
 
 - `GET /api/dashboard`: renvoie les projets dont l’utilisateur connecté est propriétaire ou membre, avec les nombres de tâches par statut et leur progression. La réponse inclut les identifiants des projets pour accéder à leurs tâches via les routes projet.
+
+## Notifications
+
+Toutes les routes nécessitent un JWT et ne renvoient que les notifications de l’utilisateur connecté.
+
+- `GET /api/notifications`: lister ses notifications, des plus récentes aux plus anciennes.
+- `PATCH /api/notifications/{notificationId}/read`: marquer une notification comme lue.
+
+Une notification de type `TASK_ASSIGNED` est créée lorsqu’un utilisateur est nouvellement assigné à une tâche. Réassigner la tâche au même utilisateur ne crée pas de notification supplémentaire.
