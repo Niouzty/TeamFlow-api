@@ -22,6 +22,10 @@ mvn spring-boot:run
 
 L’API est disponible sur `http://localhost:8080`.
 
+## CI
+
+GitHub Actions lance `mvn verify` sur chaque pull request vers `develop` et chaque push sur `develop`.
+
 ## Profil utilisateur
 
 Les routes suivantes nécessitent un JWT dans l’en-tête `Authorization: Bearer <token>`:
