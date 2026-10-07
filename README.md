@@ -34,7 +34,7 @@ Le compte est identifié à partir du JWT. Le rôle ne peut pas être modifié p
 
 ## Projets
 
-Toutes les routes projet nécessitent un JWT. Un utilisateur ne peut consulter, modifier ou supprimer que les projets dont il est propriétaire.
+Toutes les routes projet nécessitent un JWT. Un utilisateur peut consulter et modifier les projets dont il est propriétaire. Un administrateur peut consulter et modifier tous les projets, mais seul le propriétaire peut supprimer son projet.
 
 - `POST /api/projects`: créer un projet (`name`, `description`).
 - `GET /api/projects`: lister ses projets.
@@ -44,7 +44,7 @@ Toutes les routes projet nécessitent un JWT. Un utilisateur ne peut consulter, 
 
 ## Membres de projet
 
-Seul le propriétaire du projet peut gérer ses membres. Toutes les routes nécessitent un JWT.
+Le propriétaire du projet et un administrateur peuvent consulter et gérer ses membres. Toutes les routes nécessitent un JWT.
 
 - `GET /api/projects/{projectId}/members`: lister les membres du projet.
 - `POST /api/projects/{projectId}/members`: ajouter un membre avec son email (`{"email":"member@example.com"}`).
@@ -56,7 +56,7 @@ Un membre qui a encore des tâches assignées ne peut pas être retiré du proje
 
 ## Tâches
 
-Les tâches sont rattachées à un projet. Toutes les routes nécessitent un JWT et sont limitées au propriétaire et aux membres du projet.
+Les tâches sont rattachées à un projet. Toutes les routes nécessitent un JWT et sont limitées au propriétaire et aux membres du projet ; un administrateur peut accéder aux tâches de tous les projets.
 
 - `POST /api/projects/{projectId}/tasks`: créer une tâche (`title`, `description`, `priority`, `dueDate`).
 - `GET /api/projects/{projectId}/tasks`: lister les tâches du projet.
@@ -64,7 +64,7 @@ Les tâches sont rattachées à un projet. Toutes les routes nécessitent un JWT
 - `PUT /api/projects/{projectId}/tasks/{taskId}`: modifier les détails d’une tâche. Le propriétaire peut modifier toutes les tâches ; un membre ne peut modifier que les tâches qui lui sont assignées.
 - `PATCH /api/projects/{projectId}/tasks/{taskId}/status`: modifier le statut (`TODO`, `IN_PROGRESS`, `DONE`).
 - `PATCH /api/projects/{projectId}/tasks/{taskId}/assignee`: assigner (`{"userId":2}`) ou désassigner (`{"userId":null}`). Le propriétaire peut choisir un membre du projet ; un membre peut uniquement s’assigner lui-même.
-- `DELETE /api/projects/{projectId}/tasks/{taskId}`: supprimer une tâche (propriétaire uniquement).
+- `DELETE /api/projects/{projectId}/tasks/{taskId}`: supprimer une tâche (propriétaire du projet uniquement).
 
 La priorité accepte `LOW`, `MEDIUM` ou `HIGH`; la date d’échéance est facultative.
 
@@ -80,3 +80,17 @@ Toutes les routes nécessitent un JWT et ne renvoient que les notifications de l
 - `PATCH /api/notifications/{notificationId}/read`: marquer une notification comme lue.
 
 Une notification de type `TASK_ASSIGNED` est créée lorsqu’un utilisateur est nouvellement assigné à une tâche. Réassigner la tâche au même utilisateur ne crée pas de notification supplémentaire.
+
+## Rôles et permissions
+
+L’inscription attribue toujours le rôle `USER`. Les propriétaires et membres gardent les permissions décrites dans les sections Projets et Tâches.
+
+Le rôle `ADMIN` donne accès à la consultation et à la modification de tous les projets, de leurs membres et de leurs tâches, ainsi qu’à la consultation et la modification du nom et de l’email de tous les comptes. Les administrateurs ne peuvent pas supprimer les projets ou tâches d’autres propriétaires, supprimer des comptes ni changer les rôles via l’API.
+
+Les routes administrateur sont `GET /api/admin/users`, `GET /api/admin/users/{userId}` et `PATCH /api/admin/users/{userId}`. Les rôles ne sont pas modifiables dans le corps de cette requête.
+
+Il n’existe pas de route publique pour devenir administrateur. Pour attribuer ce rôle, un opérateur autorisé doit modifier le compte directement en base, puis l’utilisateur doit se reconnecter afin d’obtenir un JWT portant le nouveau rôle. Par exemple :
+
+```sql
+UPDATE users SET role = 'ADMIN' WHERE email = 'admin@example.com';
+```

@@ -20,6 +20,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -160,6 +161,29 @@ class UserServiceTest {
 
         assertEquals("alice@example.com", user.getEmail());
         verify(userRepository, never()).save(org.mockito.ArgumentMatchers.any(User.class));
+    }
+
+    @Test
+    void adminCanUpdateUserDetailsWithoutChangingTheirRole() {
+        User user = new User("bob", "bob@example.com", "encoded-password", UserRole.ADMIN);
+        UpdateUserProfileRequestDto request =
+                new UpdateUserProfileRequestDto("robert", "robert@example.com");
+        UserResponseDto expected = new UserResponseDto(
+                2L, "robert", "robert@example.com", UserRole.ADMIN, null
+        );
+        when(userRepository.findById(2L)).thenReturn(java.util.Optional.of(user));
+        when(userRepository.existsByUsername("robert")).thenReturn(false);
+        when(userRepository.existsByEmail("robert@example.com")).thenReturn(false);
+        when(userRepository.save(user)).thenReturn(user);
+        when(userMapper.toResponseDto(user)).thenReturn(expected);
+
+        UserResponseDto response = userService.updateUserById(2L, request);
+
+        assertEquals("robert", user.getUsername());
+        assertEquals("robert@example.com", user.getEmail());
+        assertEquals(UserRole.ADMIN, user.getRole());
+        assertEquals(expected, response);
+        assertTrue(response.role() == UserRole.ADMIN);
     }
 
     @Test

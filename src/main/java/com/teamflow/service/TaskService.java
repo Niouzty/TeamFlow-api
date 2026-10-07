@@ -8,6 +8,7 @@ import com.teamflow.entity.Notification;
 import com.teamflow.entity.Project;
 import com.teamflow.entity.Task;
 import com.teamflow.entity.User;
+import com.teamflow.entity.UserRole;
 import com.teamflow.exception.ProjectAccessDeniedException;
 import com.teamflow.exception.ProjectNotFoundException;
 import com.teamflow.exception.TaskNotFoundException;
@@ -77,7 +78,7 @@ public class TaskService {
     ) {
         ProjectAccess access = getProjectAccess(projectId, requesterEmail);
         Task task = findTask(projectId, taskId);
-        if (!access.owner() && !isAssignedTo(task, access.user())) {
+        if (!access.owner() && !access.admin() && !isAssignedTo(task, access.user())) {
             throw new ProjectAccessDeniedException();
         }
 
@@ -122,7 +123,8 @@ public class TaskService {
             }
         }
 
-        if (!access.owner() && (assignee == null || !assignee.getId().equals(access.user().getId()))) {
+        if (!access.owner() && !access.admin()
+                && (assignee == null || !assignee.getId().equals(access.user().getId()))) {
             throw new ProjectAccessDeniedException();
         }
 
@@ -153,12 +155,13 @@ public class TaskService {
         User requester = userRepository.findByEmail(requesterEmail)
                 .orElseThrow(UserNotFoundException::new);
         boolean owner = project.getOwner().getEmail().equals(requesterEmail);
+        boolean admin = requester.getRole() == UserRole.ADMIN;
 
-        if (!owner && !project.hasMember(requester.getId())) {
+        if (!owner && !admin && !project.hasMember(requester.getId())) {
             throw new ProjectAccessDeniedException();
         }
 
-        return new ProjectAccess(project, requester, owner);
+        return new ProjectAccess(project, requester, owner, admin);
     }
 
     private Task findTask(Long projectId, Long taskId) {
@@ -171,6 +174,6 @@ public class TaskService {
                 && task.getAssignedUser().getId().equals(user.getId());
     }
 
-    private record ProjectAccess(Project project, User user, boolean owner) {
+    private record ProjectAccess(Project project, User user, boolean owner, boolean admin) {
     }
 }

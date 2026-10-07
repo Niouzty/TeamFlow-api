@@ -12,6 +12,8 @@ public interface ProjectRepository extends JpaRepository<Project, Long> {
 
     List<Project> findAllByOwner_EmailOrderByCreatedAtDesc(String ownerEmail);
 
+    List<Project> findAllByOrderByCreatedAtDesc();
+
     Optional<Project> findByIdAndOwner_Email(Long id, String ownerEmail);
 
     @Query("""

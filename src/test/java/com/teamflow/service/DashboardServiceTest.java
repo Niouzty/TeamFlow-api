@@ -85,6 +85,28 @@ class DashboardServiceTest {
     }
 
     @Test
+    void adminDashboardIncludesEveryProject() {
+        String email = "admin@example.com";
+        Project firstProject = project(1L, "First project");
+        Project secondProject = project(2L, "Second project");
+        when(userRepository.findByEmail(email)).thenReturn(Optional.of(
+                new User("admin", email, "encoded-password", UserRole.ADMIN)));
+        when(projectRepository.findAllByOrderByCreatedAtDesc())
+                .thenReturn(List.of(firstProject, secondProject));
+        when(taskRepository.countTasksByProjectIds(List.of(1L, 2L))).thenReturn(List.of(
+                new ProjectTaskCounts(1L, 1L, 0L, 0L, 1L),
+                new ProjectTaskCounts(2L, 2L, 1L, 1L, 0L)
+        ));
+
+        DashboardResponseDto dashboard = dashboardService.getDashboard(email);
+
+        assertEquals(2, dashboard.totalProjects());
+        assertEquals(3, dashboard.totalTasks());
+        verify(projectRepository).findAllByOrderByCreatedAtDesc();
+        verify(projectRepository, never()).findAllVisibleToUser(email);
+    }
+
+    @Test
     void getDashboardReturnsZeroProgressForProjectsWithoutTasks() {
         String email = "alice@example.com";
         Project project = project(1L, "Empty project");
