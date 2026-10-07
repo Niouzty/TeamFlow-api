@@ -14,6 +14,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Service
 public class UserService {
 
@@ -55,11 +57,40 @@ public class UserService {
         return userMapper.toResponseDto(user);
     }
 
+    @Transactional(readOnly = true)
+    public List<UserResponseDto> findAllUsers() {
+        return userRepository.findAllByOrderByCreatedAtDesc()
+                .stream()
+                .map(userMapper::toResponseDto)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public UserResponseDto findUserById(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(UserNotFoundException::new);
+        return userMapper.toResponseDto(user);
+    }
+
+    @Transactional
+    public UserResponseDto updateUserById(Long userId, UpdateUserProfileRequestDto request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(UserNotFoundException::new);
+        updateProfile(user, request);
+        return userMapper.toResponseDto(userRepository.save(user));
+    }
+
     @Transactional
     public UserResponseDto updateProfile(String email, UpdateUserProfileRequestDto request) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(UserNotFoundException::new);
 
+        updateProfile(user, request);
+        User savedUser = userRepository.save(user);
+        return userMapper.toResponseDto(savedUser);
+    }
+
+    private void updateProfile(User user, UpdateUserProfileRequestDto request) {
         if (!user.getUsername().equals(request.username())
                 && userRepository.existsByUsername(request.username())) {
             throw new UserAlreadyExistsException("This username is already taken.");
@@ -71,8 +102,6 @@ public class UserService {
 
         user.setUsername(request.username());
         user.setEmail(request.email());
-        User savedUser = userRepository.save(user);
-        return userMapper.toResponseDto(savedUser);
     }
 
     @Transactional

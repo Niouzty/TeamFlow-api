@@ -5,6 +5,7 @@ import com.teamflow.dto.project.ProjectResponseDto;
 import com.teamflow.dto.project.ProjectMemberResponseDto;
 import com.teamflow.entity.Project;
 import com.teamflow.entity.User;
+import com.teamflow.entity.UserRole;
 import com.teamflow.exception.ProjectMemberAlreadyExistsException;
 import com.teamflow.exception.ProjectMemberHasAssignedTasksException;
 import com.teamflow.exception.ProjectMemberNotFoundException;
@@ -49,7 +50,11 @@ public class ProjectService {
 
     @Transactional(readOnly = true)
     public List<ProjectResponseDto> findAllForOwner(String ownerEmail) {
-        return projectRepository.findAllByOwner_EmailOrderByCreatedAtDesc(ownerEmail)
+        User requester = findUser(ownerEmail);
+        List<Project> projects = requester.getRole() == UserRole.ADMIN
+                ? projectRepository.findAllByOrderByCreatedAtDesc()
+                : projectRepository.findAllByOwner_EmailOrderByCreatedAtDesc(ownerEmail);
+        return projects
                 .stream()
                 .map(projectMapper::toResponseDto)
                 .toList();
@@ -73,7 +78,8 @@ public class ProjectService {
 
     @Transactional
     public void delete(Long projectId, String ownerEmail) {
-        Project project = findProjectForOwner(projectId, ownerEmail);
+        Project project = projectRepository.findByIdAndOwner_Email(projectId, ownerEmail)
+                .orElseThrow(ProjectNotFoundException::new);
         projectRepository.delete(project);
     }
 
@@ -117,7 +123,17 @@ public class ProjectService {
     }
 
     private Project findProjectForOwner(Long projectId, String ownerEmail) {
+        User requester = findUser(ownerEmail);
+        if (requester.getRole() == UserRole.ADMIN) {
+            return projectRepository.findById(projectId)
+                    .orElseThrow(ProjectNotFoundException::new);
+        }
         return projectRepository.findByIdAndOwner_Email(projectId, ownerEmail)
                 .orElseThrow(ProjectNotFoundException::new);
+    }
+
+    private User findUser(String email) {
+        return userRepository.findByEmail(email)
+                .orElseThrow(UserNotFoundException::new);
     }
 }

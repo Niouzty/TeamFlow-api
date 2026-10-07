@@ -159,6 +159,35 @@ class TaskServiceTest {
     }
 
     @Test
+    void adminCanEditAnyProjectTaskButCannotDeleteIt() {
+        User owner = user(1L, "alice", "alice@example.com");
+        User admin = new User("admin", "admin@example.com", "encoded-password", UserRole.ADMIN);
+        ReflectionTestUtils.setField(admin, "id", 9L);
+        Project project = project(owner);
+        Task task = new Task("Old title", null, project);
+        TaskRequestDto request = request("Updated by admin");
+        TaskResponseDto response = response(task, 1L);
+        when(projectRepository.findById(5L)).thenReturn(Optional.of(project));
+        when(userRepository.findByEmail(admin.getEmail())).thenReturn(Optional.of(admin));
+        when(taskRepository.findByIdAndProject_Id(8L, 5L)).thenReturn(Optional.of(task));
+        doAnswer(invocation -> {
+            task.setTitle(((TaskRequestDto) invocation.getArgument(1)).title());
+            return null;
+        }).when(taskMapper).updateEntity(task, request);
+        when(taskRepository.save(task)).thenReturn(task);
+        when(taskMapper.toResponseDto(task)).thenReturn(response);
+
+        taskService.update(5L, 8L, admin.getEmail(), request);
+
+        assertEquals("Updated by admin", task.getTitle());
+        assertThrows(
+                ProjectAccessDeniedException.class,
+                () -> taskService.delete(5L, 8L, admin.getEmail())
+        );
+        verify(taskRepository, never()).delete(task);
+    }
+
+    @Test
     void anyProjectMemberCanChangeTaskStatus() {
         User owner = user(1L, "alice", "alice@example.com");
         User member = user(2L, "bob", "bob@example.com");

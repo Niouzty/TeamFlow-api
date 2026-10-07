@@ -11,6 +11,7 @@ import com.teamflow.dto.task.TaskRequestDto;
 import com.teamflow.dto.task.TaskResponseDto;
 import com.teamflow.dto.task.TaskStatusRequestDto;
 import com.teamflow.dto.user.UserResponseDto;
+import com.teamflow.dto.user.UpdateUserProfileRequestDto;
 import com.teamflow.entity.TaskPriority;
 import com.teamflow.entity.TaskStatus;
 import com.teamflow.entity.UserRole;
@@ -334,6 +335,59 @@ class SecurityConfigTest {
     }
 
     @Test
+    void adminUserRoutesRequireTheAdminRole() throws Exception {
+        mockMvc.perform(get("/api/admin/users"))
+                .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(get("/api/admin/users")
+                        .header("Authorization", "Bearer " + createToken("alice@example.com", "USER")))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void adminCanListUsers() throws Exception {
+        when(userService.findAllUsers()).thenReturn(java.util.List.of(
+                new UserResponseDto(2L, "bob", "bob@example.com", UserRole.USER, null)
+        ));
+
+        mockMvc.perform(get("/api/admin/users")
+                        .header("Authorization", "Bearer " + createToken("admin@example.com", "ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].email").value("bob@example.com"))
+                .andExpect(jsonPath("$[0].role").value("USER"));
+    }
+
+    @Test
+    void adminCanViewAndUpdateUserDetailsWithoutChangingTheRole() throws Exception {
+        UserResponseDto response = new UserResponseDto(
+                2L, "bob-updated", "bob@example.com", UserRole.USER, null
+        );
+        when(userService.findUserById(2L)).thenReturn(
+                new UserResponseDto(2L, "bob", "bob@example.com", UserRole.USER, null)
+        );
+        when(userService.updateUserById(
+                org.mockito.ArgumentMatchers.eq(2L),
+                any(UpdateUserProfileRequestDto.class)
+        )).thenReturn(response);
+        String token = createToken("admin@example.com", "ADMIN");
+
+        mockMvc.perform(get("/api/admin/users/2")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.role").value("USER"));
+
+        mockMvc.perform(patch("/api/admin/users/2")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"username":"bob-updated","email":"bob@example.com"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.username").value("bob-updated"))
+                .andExpect(jsonPath("$.role").value("USER"));
+    }
+
+    @Test
     void notificationRoutesRequireAuthentication() throws Exception {
         mockMvc.perform(get("/api/notifications"))
                 .andExpect(status().isUnauthorized());
@@ -367,12 +421,19 @@ class SecurityConfigTest {
     }
 
     private String createToken(String subject) {
+        return createToken(subject, null);
+    }
+
+    private String createToken(String subject, String role) {
         Instant now = Instant.now();
-        JwtClaimsSet claims = JwtClaimsSet.builder()
+        JwtClaimsSet.Builder claimsBuilder = JwtClaimsSet.builder()
                 .subject(subject)
                 .issuedAt(now)
-                .expiresAt(now.plusSeconds(60))
-                .build();
+                .expiresAt(now.plusSeconds(60));
+        if (role != null) {
+            claimsBuilder.claim("role", role);
+        }
+        JwtClaimsSet claims = claimsBuilder.build();
         return jwtEncoder.encode(JwtEncoderParameters.from(
                 JwsHeader.with(MacAlgorithm.HS256).build(),
                 claims

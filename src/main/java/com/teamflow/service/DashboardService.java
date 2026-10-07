@@ -4,6 +4,8 @@ import com.teamflow.dto.dashboard.DashboardResponseDto;
 import com.teamflow.dto.dashboard.ProjectDashboardDto;
 import com.teamflow.dto.dashboard.ProjectTaskCounts;
 import com.teamflow.entity.Project;
+import com.teamflow.entity.User;
+import com.teamflow.entity.UserRole;
 import com.teamflow.exception.UserNotFoundException;
 import com.teamflow.repository.ProjectRepository;
 import com.teamflow.repository.TaskRepository;
@@ -34,10 +36,12 @@ public class DashboardService {
 
     @Transactional(readOnly = true)
     public DashboardResponseDto getDashboard(String userEmail) {
-        userRepository.findByEmail(userEmail)
+        User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(UserNotFoundException::new);
 
-        List<Project> projects = projectRepository.findAllVisibleToUser(userEmail);
+        List<Project> projects = user.getRole() == UserRole.ADMIN
+                ? projectRepository.findAllByOrderByCreatedAtDesc()
+                : projectRepository.findAllVisibleToUser(userEmail);
         if (projects.isEmpty()) {
             return new DashboardResponseDto(0, 0, 0, 0, 0, 0, List.of());
         }

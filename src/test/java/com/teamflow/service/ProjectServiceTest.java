@@ -90,6 +90,7 @@ class ProjectServiceTest {
         User owner = new User("alice", ownerEmail, "encoded-password", UserRole.USER);
         Project first = new Project("First", null, owner);
         Project second = new Project("Second", null, owner);
+        when(userRepository.findByEmail(ownerEmail)).thenReturn(Optional.of(owner));
         when(projectRepository.findAllByOwner_EmailOrderByCreatedAtDesc(ownerEmail))
                 .thenReturn(List.of(first, second));
         when(projectMapper.toResponseDto(first)).thenReturn(
@@ -107,6 +108,8 @@ class ProjectServiceTest {
 
     @Test
     void findProjectHidesProjectsOwnedBySomeoneElse() {
+        when(userRepository.findByEmail("alice@example.com"))
+                .thenReturn(Optional.of(user(2L, "alice", "alice@example.com")));
         when(projectRepository.findByIdAndOwner_Email(9L, "alice@example.com"))
                 .thenReturn(Optional.empty());
 
@@ -123,6 +126,7 @@ class ProjectServiceTest {
         Project project = new Project("Old name", "Old description", owner);
         ProjectRequestDto request = new ProjectRequestDto("New name", "New description");
         ProjectResponseDto response = response(1L, request, owner);
+        when(userRepository.findByEmail(ownerEmail)).thenReturn(Optional.of(owner));
         when(projectRepository.findByIdAndOwner_Email(1L, ownerEmail))
                 .thenReturn(Optional.of(project));
         doAnswer(invocation -> {
@@ -165,6 +169,7 @@ class ProjectServiceTest {
         Project project = new Project("TeamFlow", null, owner);
         project.addMember(member);
         ProjectMemberResponseDto memberResponse = new ProjectMemberResponseDto(2L, "bob");
+        when(userRepository.findByEmail(ownerEmail)).thenReturn(Optional.of(owner));
         when(projectRepository.findByIdAndOwner_Email(5L, ownerEmail))
                 .thenReturn(Optional.of(project));
         when(projectMapper.toMemberResponseDtos(project)).thenReturn(List.of(memberResponse));
@@ -182,6 +187,7 @@ class ProjectServiceTest {
         User member = user(2L, "bob", "bob@example.com");
         Project project = new Project("TeamFlow", null, owner);
         ProjectMemberResponseDto expected = new ProjectMemberResponseDto(2L, "bob");
+        when(userRepository.findByEmail(ownerEmail)).thenReturn(Optional.of(owner));
         when(projectRepository.findByIdAndOwner_Email(5L, ownerEmail))
                 .thenReturn(Optional.of(project));
         when(userRepository.findByEmail(member.getEmail())).thenReturn(Optional.of(member));
@@ -200,6 +206,7 @@ class ProjectServiceTest {
         String ownerEmail = "alice@example.com";
         User owner = user(1L, "alice", ownerEmail);
         Project project = new Project("TeamFlow", null, owner);
+        when(userRepository.findByEmail(ownerEmail)).thenReturn(Optional.of(owner));
         when(projectRepository.findByIdAndOwner_Email(5L, ownerEmail))
                 .thenReturn(Optional.of(project));
         when(userRepository.findByEmail("unknown@example.com")).thenReturn(Optional.empty());
@@ -219,6 +226,7 @@ class ProjectServiceTest {
         User member = user(2L, "bob", "bob@example.com");
         Project project = new Project("TeamFlow", null, owner);
         project.addMember(member);
+        when(userRepository.findByEmail(ownerEmail)).thenReturn(Optional.of(owner));
         when(projectRepository.findByIdAndOwner_Email(5L, ownerEmail))
                 .thenReturn(Optional.of(project));
         when(userRepository.findByEmail(member.getEmail())).thenReturn(Optional.of(member));
@@ -233,6 +241,8 @@ class ProjectServiceTest {
 
     @Test
     void addMemberRejectsProjectsNotOwnedByTheRequester() {
+        when(userRepository.findByEmail("bob@example.com"))
+                .thenReturn(Optional.of(user(2L, "bob", "bob@example.com")));
         when(projectRepository.findByIdAndOwner_Email(5L, "bob@example.com"))
                 .thenReturn(Optional.empty());
 
@@ -251,6 +261,7 @@ class ProjectServiceTest {
         User member = user(2L, "bob", "bob@example.com");
         Project project = new Project("TeamFlow", null, owner);
         project.addMember(member);
+        when(userRepository.findByEmail(ownerEmail)).thenReturn(Optional.of(owner));
         when(projectRepository.findByIdAndOwner_Email(5L, ownerEmail))
                 .thenReturn(Optional.of(project));
         when(taskRepository.existsByAssignedUser_IdAndProject_Id(2L, 5L)).thenReturn(false);
@@ -268,6 +279,7 @@ class ProjectServiceTest {
         User member = user(2L, "bob", "bob@example.com");
         Project project = new Project("TeamFlow", null, owner);
         project.addMember(member);
+        when(userRepository.findByEmail(ownerEmail)).thenReturn(Optional.of(owner));
         when(projectRepository.findByIdAndOwner_Email(5L, ownerEmail))
                 .thenReturn(Optional.of(project));
         when(taskRepository.existsByAssignedUser_IdAndProject_Id(2L, 5L)).thenReturn(true);
@@ -286,6 +298,7 @@ class ProjectServiceTest {
         String ownerEmail = "alice@example.com";
         User owner = user(1L, "alice", ownerEmail);
         Project project = new Project("TeamFlow", null, owner);
+        when(userRepository.findByEmail(ownerEmail)).thenReturn(Optional.of(owner));
         when(projectRepository.findByIdAndOwner_Email(5L, ownerEmail))
                 .thenReturn(Optional.of(project));
 
@@ -299,6 +312,8 @@ class ProjectServiceTest {
 
     @Test
     void removeMemberRejectsProjectsNotOwnedByTheRequester() {
+        when(userRepository.findByEmail("bob@example.com"))
+                .thenReturn(Optional.of(user(2L, "bob", "bob@example.com")));
         when(projectRepository.findByIdAndOwner_Email(5L, "bob@example.com"))
                 .thenReturn(Optional.empty());
 
@@ -308,6 +323,51 @@ class ProjectServiceTest {
         );
 
         verify(projectRepository, never()).save(org.mockito.ArgumentMatchers.any(Project.class));
+    }
+
+    @Test
+    void adminCanViewAllProjectsButCannotDeleteSomeoneElsesProject() {
+        String adminEmail = "admin@example.com";
+        User admin = new User("admin", adminEmail, "encoded-password", UserRole.ADMIN);
+        User owner = user(1L, "alice", "alice@example.com");
+        Project project = new Project("TeamFlow", null, owner);
+        when(userRepository.findByEmail(adminEmail)).thenReturn(Optional.of(admin));
+        when(projectRepository.findAllByOrderByCreatedAtDesc()).thenReturn(List.of(project));
+        when(projectMapper.toResponseDto(project)).thenReturn(
+                response(5L, new ProjectRequestDto("TeamFlow", null), owner)
+        );
+        when(projectRepository.findByIdAndOwner_Email(5L, adminEmail))
+                .thenReturn(Optional.empty());
+
+        assertEquals(1, projectService.findAllForOwner(adminEmail).size());
+        assertThrows(ProjectNotFoundException.class, () -> projectService.delete(5L, adminEmail));
+        verify(projectRepository, never()).delete(project);
+    }
+
+    @Test
+    void adminCanUpdateAProjectTheyDoNotOwn() {
+        String adminEmail = "admin@example.com";
+        User admin = new User("admin", adminEmail, "encoded-password", UserRole.ADMIN);
+        User owner = user(1L, "alice", "alice@example.com");
+        Project project = new Project("Old name", null, owner);
+        ProjectRequestDto request = new ProjectRequestDto("New name", "Updated by admin");
+        when(userRepository.findByEmail(adminEmail)).thenReturn(Optional.of(admin));
+        when(projectRepository.findById(5L)).thenReturn(Optional.of(project));
+        doAnswer(invocation -> {
+            Project target = invocation.getArgument(0);
+            ProjectRequestDto update = invocation.getArgument(1);
+            target.setName(update.name());
+            target.setDescription(update.description());
+            return null;
+        }).when(projectMapper).updateEntity(project, request);
+        when(projectRepository.save(project)).thenReturn(project);
+        when(projectMapper.toResponseDto(project)).thenReturn(response(5L, request, owner));
+
+        projectService.update(5L, adminEmail, request);
+
+        assertEquals("New name", project.getName());
+        assertEquals("Updated by admin", project.getDescription());
+        assertEquals(owner, project.getOwner());
     }
 
     private ProjectResponseDto response(Long id, ProjectRequestDto request, User owner) {
