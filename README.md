@@ -22,9 +22,11 @@ mvn spring-boot:run
 
 L’API est disponible sur `http://localhost:8080`.
 
-## CI
+## Documentation API
 
-GitHub Actions lance `mvn verify` sur chaque pull request vers `develop` et chaque push sur `develop`.
+Une fois l’application démarrée, l’interface Swagger UI est disponible sur `http://localhost:8080/swagger-ui/index.html` et la spécification OpenAPI JSON sur `http://localhost:8080/v3/api-docs`.
+
+Les routes protégées sont documentées avec l’authentification Bearer JWT. Dans Swagger UI, utilise **Authorize** et colle le token reçu à la connexion (sans ajouter toi-même le préfixe `Bearer`).
 
 ## Profil utilisateur
 

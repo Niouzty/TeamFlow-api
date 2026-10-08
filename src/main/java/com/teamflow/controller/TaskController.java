@@ -6,6 +6,8 @@ import com.teamflow.dto.task.TaskResponseDto;
 import com.teamflow.dto.task.TaskStatusRequestDto;
 import com.teamflow.service.TaskService;
 import jakarta.validation.Valid;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -26,6 +28,8 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/projects/{projectId}/tasks")
+@SecurityRequirement(name = "bearerAuth")
+@Tag(name = "Tâches", description = "Création, consultation, attribution et suivi des tâches.")
 public class TaskController {
 
     private final TaskService taskService;
