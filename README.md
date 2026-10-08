@@ -22,6 +22,12 @@ mvn spring-boot:run
 
 L’API est disponible sur `http://localhost:8080`.
 
+## Documentation API
+
+Une fois l’application démarrée, l’interface Swagger UI est disponible sur `http://localhost:8080/swagger-ui/index.html` et la spécification OpenAPI JSON sur `http://localhost:8080/v3/api-docs`.
+
+Les routes protégées sont documentées avec l’authentification Bearer JWT. Dans Swagger UI, utilise **Authorize** et colle le token reçu à la connexion (sans ajouter toi-même le préfixe `Bearer`).
+
 ## Profil utilisateur
 
 Les routes suivantes nécessitent un JWT dans l’en-tête `Authorization: Bearer <token>`:

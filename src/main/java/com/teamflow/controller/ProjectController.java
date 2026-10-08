@@ -6,6 +6,8 @@ import com.teamflow.dto.project.AddProjectMemberRequestDto;
 import com.teamflow.dto.project.ProjectMemberResponseDto;
 import com.teamflow.service.ProjectService;
 import jakarta.validation.Valid;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -25,6 +27,8 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/projects")
+@SecurityRequirement(name = "bearerAuth")
+@Tag(name = "Projets", description = "Gestion des projets et de leurs membres.")
 public class ProjectController {
 
     private final ProjectService projectService;

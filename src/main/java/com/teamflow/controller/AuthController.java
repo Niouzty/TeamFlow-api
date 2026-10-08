@@ -7,6 +7,7 @@ import com.teamflow.dto.user.UserResponseDto;
 import com.teamflow.service.AuthService;
 import com.teamflow.service.UserService;
 import jakarta.validation.Valid;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/auth")
+@Tag(name = "Authentification", description = "Inscription et connexion.")
 public class AuthController {
 
     private final UserService userService;

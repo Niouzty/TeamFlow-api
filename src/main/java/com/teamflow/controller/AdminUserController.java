@@ -4,6 +4,8 @@ import com.teamflow.dto.user.UpdateUserProfileRequestDto;
 import com.teamflow.dto.user.UserResponseDto;
 import com.teamflow.service.UserService;
 import jakarta.validation.Valid;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -16,6 +18,8 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/admin/users")
+@SecurityRequirement(name = "bearerAuth")
+@Tag(name = "Administration", description = "Consultation et modification des comptes (rôle ADMIN requis).")
 public class AdminUserController {
 
     private final UserService userService;

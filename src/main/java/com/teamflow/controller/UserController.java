@@ -5,6 +5,8 @@ import com.teamflow.dto.user.ChangePasswordRequestDto;
 import com.teamflow.dto.user.UserResponseDto;
 import com.teamflow.service.UserService;
 import jakarta.validation.Valid;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -18,6 +20,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/users")
+@SecurityRequirement(name = "bearerAuth")
+@Tag(name = "Profil", description = "Consultation et gestion du profil connecté.")
 public class UserController {
 
     private final UserService userService;
